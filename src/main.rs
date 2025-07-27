@@ -55,8 +55,10 @@ fn main() -> Result<()> {
     // 4. 创建输出目录
     fs::create_dir_all("qr")
         .context("无法创建 qr 目录")?;
+    fs::create_dir_all("links")
+        .context("无法创建 links 目录")?;
     
-    // 5. 为每一项生成二维码 PNG
+    // 5. 为每一项生成二维码 PNG 和 TOTP 链接
     for (index, entry) in export.entries.iter().enumerate() {
         println!("🔄 处理第 {}/{} 项: {} ({})", 
                  index + 1, export.entries.len(), 
@@ -65,24 +67,39 @@ fn main() -> Result<()> {
         let totp = build_totp(entry)
             .with_context(|| format!("构建 TOTP 失败: {} ({})", entry.label_name, entry.username))?;
         
+        // 生成二维码 PNG
         let png = totp.get_qr_png()
             .map_err(|e| anyhow::anyhow!("生成二维码失败: {} ({}): {}", entry.label_name, entry.username, e))?;
 
-        // 文件名: <label>-<username>.png ，去掉可能的斜杠/空格
-        let filename = format!(
-            "{}-{}.png",
+        // 生成 TOTP 链接
+        let totp_url = totp.get_url();
+        
+        // 文件名: <label>-<username> ，去掉可能的斜杠/空格
+        let base_filename = format!(
+            "{}-{}",
             sanitize(&entry.label_name),
             sanitize(&entry.username)
         );
-        let path = Path::new("qr").join(filename);
         
-        fs::write(&path, png)
-            .with_context(|| format!("写入文件失败: {:?}", path))?;
+        // 保存二维码 PNG
+        let png_path = Path::new("qr").join(format!("{}.png", base_filename));
+        fs::write(&png_path, png)
+            .with_context(|| format!("写入 PNG 文件失败: {:?}", png_path))?;
         
-        println!("✅ 已生成: {:?}", path);
+        // 保存 TOTP 链接
+        let link_path = Path::new("links").join(format!("{}.txt", base_filename));
+        fs::write(&link_path, &totp_url)
+            .with_context(|| format!("写入链接文件失败: {:?}", link_path))?;
+        
+        println!("✅ 已生成 PNG: {:?}", png_path);
+        println!("🔗 已生成链接: {:?}", link_path);
+        println!("🔗 TOTP URL: {}", totp_url);
+        println!();
     }
     
-    println!("🎉 所有二维码生成完成！");
+    println!("🎉 所有二维码和 TOTP 链接生成完成！");
+    println!("📁 二维码保存在: qr/ 目录");
+    println!("🔗 TOTP 链接保存在: links/ 目录");
     Ok(())
 }
 
