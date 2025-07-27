@@ -1,0 +1,12 @@
+[package]
+name = "gen-totp-pic"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+serde        = { version = "1", features = ["derive"] }
+serde_json   = "1"
+base32       = "0.5"          # 手动解码
+# totp-rs 打开三扇门：二维码 / otpauth 解析 / serde 反序列化
+totp-rs      = { version = "5.7", features = ["qr", "otpauth", "serde_support"] }
+anyhow       = "1"
